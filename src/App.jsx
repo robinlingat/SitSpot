@@ -71,8 +71,25 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (event === 'SIGNED_IN' && u) {
+        const m = u.user_metadata || {};
+        const profileData = {
+          id:         u.id,
+          email:      u.email,
+          name:       m.full_name || m.name || null,
+          first_name: m.given_name  || null,
+          last_name:  m.family_name || null,
+          avatar_url: m.avatar_url  || m.picture || null,
+          pseudo:     m.pseudo || m.full_name?.split(' ')[0] || null,
+          updated_at: new Date().toISOString(),
+        };
+        // Supprime les clés null pour ne pas écraser des valeurs existantes
+        Object.keys(profileData).forEach(k => profileData[k] == null && delete profileData[k]);
+        supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -263,16 +280,37 @@ export default function App() {
   const handleAddBench = () => { if(!isLoggedIn){openAuth();return;} setOverlay('addBench'); };
   const handleReview   = async ({ score, text }) => {
     if (!selected || !user) return;
-    await supabase.from('reviews').insert({
+    // Pour les bancs OSM, s'assurer qu'une entrée existe dans benches avant d'insérer l'avis
+    if (selected._osm) {
+      const { error: upsertErr } = await supabase.from('benches').upsert({
+        id:           selected.id,
+        name:         selected.name,
+        area:         selected.area,
+        lat:          selected.lat,
+        lng:          selected.lng,
+        score:        null,
+        count:        0,
+        status_tone:  'neutral',
+        status_label: 'Nouveau',
+        tags:         selected.tags,
+        intents:      [],
+        photos:       0,
+        source:       'osm',
+      }, { onConflict: 'id', ignoreDuplicates: true });
+      if (upsertErr) { showToast("Erreur : impossible de sauvegarder l'avis."); return; }
+    }
+    const { data: inserted, error } = await supabase.from('reviews').insert({
       bench_id:  selected.id,
       user_id:   user.id,
       user_name: profile?.pseudo || user.email?.split('@')[0] || 'Anonyme',
       score,
       text,
-    });
-    setBenchReviews(prev => [{ id: Date.now(), bench_id: selected.id, user_id: user.id,
+    }).select().single();
+    if (error) { showToast("Erreur : impossible de sauvegarder l'avis."); return; }
+    setBenchReviews(prev => [inserted || { id: Date.now(), bench_id: selected.id, user_id: user.id,
       user_name: profile?.pseudo || user.email?.split('@')[0] || 'Anonyme',
       score, text, created_at: new Date().toISOString() }, ...prev]);
+    setMyReviews(prev => [inserted || { id: Date.now(), bench_id: selected.id, score, text, created_at: new Date().toISOString() }, ...prev]);
     setOverlay(null);
     showToast("Merci ! Ton avis aide les autres à mieux s'asseoir 🙌");
   };
@@ -567,11 +605,14 @@ export default function App() {
         <div style={{padding:'12px', borderTop:'1px solid var(--border-subtle)'}}>
           {isLoggedIn ? (
             <div style={{display:'flex', alignItems:'center', gap:8}}>
-              <div style={{width:32, height:32, borderRadius:'50%', background:'var(--surface-accent-soft)',
-                display:'grid', placeItems:'center', flexShrink:0,
-                fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text-accent)'}}>
-                {(profile?.name || profile?.pseudo || 'U')[0].toUpperCase()}
-              </div>
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
+                : <div style={{width:32, height:32, borderRadius:'50%', background:'var(--surface-accent-soft)',
+                    display:'grid', placeItems:'center', flexShrink:0,
+                    fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text-accent)'}}>
+                    {(profile?.name || profile?.pseudo || 'U')[0].toUpperCase()}
+                  </div>
+              }
               <div style={{flex:1, minWidth:0}}>
                 <div style={{fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                   {profile?.name || profile?.pseudo || 'Utilisateur'}
@@ -630,7 +671,7 @@ export default function App() {
               <div style={{
                 position:'absolute', top:0, right:0, bottom:0, width:380,
                 background:'var(--surface-card)', boxShadow:'-4px 0 24px rgba(0,0,0,0.10)',
-                zIndex:49, overflowY:'auto', display:'flex', flexDirection:'column',
+                zIndex:49, display:'flex', flexDirection:'column', overflow:'hidden',
                 animation:'slideInRight 0.25s var(--ease-spring)',
               }}>
                 <BenchSheet bench={selected} reviews={benchReviews} photos={benchPhotos}

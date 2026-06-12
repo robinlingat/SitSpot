@@ -104,7 +104,7 @@ export function FiltersSheet({ filters, setFilters, onClose }) {
   );
 }
 
-export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted }) {
+export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted, desktop = false }) {
   const [shared,       setShared]       = React.useState(false);
   const [photoLoading, setPhotoLoading] = React.useState(false);
   const [viewPhoto,    setViewPhoto]    = React.useState(null);
@@ -166,15 +166,22 @@ export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddRev
         }
       </div>
     )}
-    <div style={{position:'absolute',bottom:78,left:0,right:0,zIndex:55,height:'68%',
+    <div style={desktop ? {
+      flex:1, display:'flex', flexDirection:'column', overflow:'hidden',
+      background:'var(--surface-card)',
+    } : {
+      position:'absolute',bottom:78,left:0,right:0,zIndex:55,height:'68%',
       background:'var(--surface-card)',borderRadius:'24px 24px 0 0',
       boxShadow:'var(--shadow-xl)',animation:'slideUp var(--dur-slow) var(--ease-spring)',
-      display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{padding:'12px 0 4px',display:'flex',justifyContent:'center',flexShrink:0}}>
-        <div style={{width:40,height:5,borderRadius:3,background:'var(--neutral-300)'}}/>
-      </div>
+      display:'flex',flexDirection:'column',overflow:'hidden',
+    }}>
+      {!desktop && (
+        <div style={{padding:'12px 0 4px',display:'flex',justifyContent:'center',flexShrink:0}}>
+          <div style={{width:40,height:5,borderRadius:3,background:'var(--neutral-300)'}}/>
+        </div>
+      )}
       <input ref={photoInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handlePhotoUpload}/>
-      <div style={{position:'relative',height:138,flexShrink:0,background:'linear-gradient(145deg,#cfe6c6,#a9d6e6)'}}>
+      <div style={{position:'relative',height: desktop ? 200 : 138,flexShrink:0,background:'linear-gradient(145deg,#cfe6c6,#a9d6e6)'}}>
         {photos.length > 0
           ? <img src={photos[0].url} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
           : <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center'}}>
@@ -529,7 +536,7 @@ export function ProfileScreen({ isLoggedIn, profile, myReviews = [], onLogout, o
       <div style={{background:'var(--surface-card)',padding:'20px 20px'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{position:'relative'}}>
-            <Avatar name={displayName} size={60}/>
+            <Avatar name={displayName} size={60} src={profile?.avatar_url||null}/>
           </div>
           <div>
             <h2 style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:19,letterSpacing:'-0.02em',margin:0}}>{displayName}</h2>
