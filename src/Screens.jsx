@@ -464,7 +464,16 @@ export function AuthModal({ view, setView, onClose, onSuccess }) {
   };
 
   const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    setLoading(true);
+    setError('');
+    const { error: e } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (e) { setError(e.message); setLoading(false); }
   };
 
   return (
