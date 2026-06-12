@@ -528,8 +528,12 @@ export function ProfileScreen({ isLoggedIn, profile, myReviews = [], onLogout, o
     </div>
   );
 
-  const displayName = profile?.name || profile?.pseudo || 'Utilisateur';
+  const firstName   = profile?.first_name || '';
+  const lastName    = profile?.last_name  || '';
+  const fullName    = profile?.name || (firstName || lastName ? `${firstName} ${lastName}`.trim() : '') || profile?.pseudo || 'Utilisateur';
+  const displayName = fullName;
   const pseudo      = profile?.pseudo || '';
+  const email       = profile?.email || '';
 
   return (
     <div style={{flex:1,overflowY:'auto',background:'var(--surface-app)'}}>
@@ -538,9 +542,10 @@ export function ProfileScreen({ isLoggedIn, profile, myReviews = [], onLogout, o
           <div style={{position:'relative'}}>
             <Avatar name={displayName} size={60} src={profile?.avatar_url||null}/>
           </div>
-          <div>
-            <h2 style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:19,letterSpacing:'-0.02em',margin:0}}>{displayName}</h2>
+          <div style={{minWidth:0}}>
+            <h2 style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:19,letterSpacing:'-0.02em',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayName}</h2>
             {pseudo&&<div style={{fontSize:13,color:'var(--text-muted)',marginTop:2}}>@{pseudo}</div>}
+            {email&&<div style={{fontSize:12,color:'var(--text-muted)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{email}</div>}
           </div>
         </div>
         <div style={{display:'flex',marginTop:18,paddingTop:16,borderTop:'1px solid var(--border-subtle)'}}>

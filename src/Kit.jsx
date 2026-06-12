@@ -116,11 +116,14 @@ export function Badge({ children, tone='green', solid, dot }) {
   );
 }
 
-export function Avatar({ name='', size=40 }) {
+export function Avatar({ name='', size=40, src=null }) {
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const tints = ['var(--green-100)','var(--blue-100)','var(--green-200)','var(--blue-200)'];
   const txts  = ['var(--green-800)','var(--blue-800)','var(--green-800)','var(--blue-800)'];
   const idx   = (name.charCodeAt(0)||0)%4;
+  if (src) return (
+    <img src={src} alt={name} style={{width:size,height:size,flexShrink:0,borderRadius:'50%',objectFit:'cover'}}/>
+  );
   return (
     <span style={{display:'grid',placeItems:'center',width:size,height:size,flexShrink:0,
       borderRadius:'50%',background:tints[idx],color:txts[idx],fontWeight:700,fontSize:size*0.38}}>

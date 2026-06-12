@@ -71,14 +71,14 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       if (event === 'SIGNED_IN' && u) {
         const m = u.user_metadata || {};
         const profileData = {
           id:         u.id,
-          email:      u.email,
+          email:      u.email || null,
           name:       m.full_name || m.name || null,
           first_name: m.given_name  || null,
           last_name:  m.family_name || null,
@@ -86,9 +86,11 @@ export default function App() {
           pseudo:     m.pseudo || m.full_name?.split(' ')[0] || null,
           updated_at: new Date().toISOString(),
         };
-        // Supprime les clés null pour ne pas écraser des valeurs existantes
         Object.keys(profileData).forEach(k => profileData[k] == null && delete profileData[k]);
-        supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
+        await supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
+        // Recharge le profil après upsert pour que l'UI soit à jour
+        const { data } = await supabase.from('profiles').select('*').eq('id', u.id).single();
+        if (data) setProfile(data);
       }
     });
     return () => subscription.unsubscribe();
