@@ -282,25 +282,6 @@ export default function App() {
   const handleAddBench = () => { if(!isLoggedIn){openAuth();return;} setOverlay('addBench'); };
   const handleReview   = async ({ score, text }) => {
     if (!selected || !user) return;
-    // Pour les bancs OSM, s'assurer qu'une entrée existe dans benches avant d'insérer l'avis
-    if (selected._osm) {
-      const { error: upsertErr } = await supabase.from('benches').upsert({
-        id:           selected.id,
-        name:         selected.name,
-        area:         selected.area,
-        lat:          selected.lat,
-        lng:          selected.lng,
-        score:        null,
-        count:        0,
-        status_tone:  'neutral',
-        status_label: 'Nouveau',
-        tags:         selected.tags,
-        intents:      [],
-        photos:       0,
-        source:       'osm',
-      }, { onConflict: 'id', ignoreDuplicates: true });
-      if (upsertErr) { showToast("Erreur : impossible de sauvegarder l'avis."); return; }
-    }
     const { data: inserted, error } = await supabase.from('reviews').insert({
       bench_id:  selected.id,
       user_id:   user.id,
@@ -308,11 +289,12 @@ export default function App() {
       score,
       text,
     }).select().single();
-    if (error) { showToast("Erreur : impossible de sauvegarder l'avis."); return; }
-    setBenchReviews(prev => [inserted || { id: Date.now(), bench_id: selected.id, user_id: user.id,
+    if (error) { console.error('insert review error:', error); showToast("Erreur : impossible de sauvegarder l'avis."); return; }
+    const review = inserted || { id: Date.now(), bench_id: selected.id, user_id: user.id,
       user_name: profile?.pseudo || user.email?.split('@')[0] || 'Anonyme',
-      score, text, created_at: new Date().toISOString() }, ...prev]);
-    setMyReviews(prev => [inserted || { id: Date.now(), bench_id: selected.id, score, text, created_at: new Date().toISOString() }, ...prev]);
+      score, text, created_at: new Date().toISOString() };
+    setBenchReviews(prev => [review, ...prev]);
+    setMyReviews(prev => [review, ...prev]);
     setOverlay(null);
     showToast("Merci ! Ton avis aide les autres à mieux s'asseoir 🙌");
   };
