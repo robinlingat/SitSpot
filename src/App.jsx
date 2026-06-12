@@ -306,13 +306,25 @@ export default function App() {
 
   const matchingSS = ssBenches.filter(matches);
 
-  const isMobile = new URLSearchParams(window.location.search).get('view') === 'mobile';
+  const isPreviewMobile = new URLSearchParams(window.location.search).get('view') === 'mobile';
+  const [isSmallScreen, setIsSmallScreen] = React.useState(() => window.innerWidth < 768);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = e => setIsSmallScreen(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const isMobile = isPreviewMobile || isSmallScreen;
 
   const PHASE_LABEL = { map: 'Chargement de la carte…', geoloc: 'Localisation en cours…' };
   const phaseLabel = PHASE_LABEL[loadPhase] || null;
 
+  // Sur mobile la TopBar (top:62, h:52) + chips (~40px) = ~154px ; on place les banners en dessous
+  const bannerTop    = isSmallScreen ? 160 : 130;
+  const refreshTop   = isSmallScreen ? 160 : 84;
+
   const RefreshBtn = showRefresh && (
-    <div style={{position:'absolute', top:84, left:'50%', transform:'translateX(-50%)', zIndex:50}}>
+    <div style={{position:'absolute', top:refreshTop, left:'50%', transform:'translateX(-50%)', zIndex:50}}>
       <button
         onClick={handleRefresh}
         disabled={isLoadingRefresh}
@@ -335,19 +347,21 @@ export default function App() {
   );
 
   const GeolocationDeniedBanner = geolocationDenied && (
-    <div style={{position:'absolute', top:130, left:'50%', transform:'translateX(-50%)', zIndex:50,
+    <div style={{position:'absolute', top:bannerTop, left:'50%', transform:'translateX(-50%)', zIndex:50,
       display:'inline-flex', alignItems:'center', gap:8, padding:'8px 16px',
       background:'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)',
-      borderRadius:99, boxShadow:'var(--shadow-md)', whiteSpace:'nowrap',
+      borderRadius:99, boxShadow:'var(--shadow-md)',
+      whiteSpace: isSmallScreen ? 'normal' : 'nowrap',
+      maxWidth: isSmallScreen ? 'calc(100vw - 32px)' : undefined,
       fontSize:13, fontWeight:600, color:'var(--danger)',
     }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Localisation refusée — autorise-la dans les paramètres du site
     </div>
   );
 
   const LoadingBanner = phaseLabel && (
-    <div style={{position:'absolute', top:130, left:'50%', transform:'translateX(-50%)', zIndex:50,
+    <div style={{position:'absolute', top:bannerTop, left:'50%', transform:'translateX(-50%)', zIndex:50,
       display:'inline-flex', alignItems:'center', gap:8, padding:'8px 16px',
       background:'rgba(255,255,255,0.94)', backdropFilter:'blur(8px)',
       borderRadius:99, boxShadow:'var(--shadow-md)', whiteSpace:'nowrap',
@@ -431,10 +445,18 @@ export default function App() {
     </div>
   );
 
-  if (isMobile) {
+  if (isPreviewMobile) {
     return (
       <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
         <DeviceScaler><IOSDevice>{mobileContent}</IOSDevice></DeviceScaler>
+      </div>
+    );
+  }
+
+  if (isSmallScreen) {
+    return (
+      <div style={{width:'100%',height:'100dvh',fontFamily:'var(--font-sans)',background:'var(--surface-app)',overflow:'hidden'}}>
+        {mobileContent}
       </div>
     );
   }
