@@ -3,10 +3,7 @@ node_modules/
 
 # Builds / caches
 dist/
-.expo/
 .vite/
-ios/build/
-android/build/
 *.tsbuildinfo
 
 # OS / éditeur

@@ -5,7 +5,7 @@
       "name": "SitSpot Web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "/Users/robin/Documents/sitspot/SitSpotWeb",
+      "cwd": "/Users/robin/Documents/sitspot",
       "port": 5173,
       "autoPort": true
     }
