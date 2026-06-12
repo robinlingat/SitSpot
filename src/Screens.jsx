@@ -116,7 +116,8 @@ export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddRev
     if (pathParts[1]) {
       await supabase.storage.from('bench-photos').remove([pathParts[1]]);
     }
-    await supabase.from('photos').delete().eq('id', photo.id);
+    const { error } = await supabase.from('photos').delete().eq('id', photo.id);
+    if (error) { alert('Erreur lors de la suppression : ' + error.message); return; }
     onPhotoDeleted?.(photo.id);
   };
 
