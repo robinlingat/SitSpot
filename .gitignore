@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Builds / caches
+dist/
+.vite/
+*.tsbuildinfo
+
+# OS / éditeur
+.DS_Store
+*.log
+
+# Binaires lourds
+*.dmg
+
+# Secrets
+.env
+.env.local
+.env.*.local

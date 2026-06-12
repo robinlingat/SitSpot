@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "SitSpot Web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/robin/Documents/sitspot",
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}
