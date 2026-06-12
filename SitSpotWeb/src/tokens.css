@@ -1,0 +1,107 @@
+/* SitSpot — Design tokens */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono&display=swap');
+
+@keyframes spin { to { transform: rotate(360deg); } }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #111; font-family: var(--font-sans); }
+button, input, textarea { font-family: var(--font-sans); }
+input:focus, textarea:focus { outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes springIn {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  60%  { opacity: 1; transform: translateX(-50%) translateY(-3px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+:root {
+  /* Fonts */
+  --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'DM Mono', ui-monospace, monospace;
+
+  /* Green */
+  --green-50:  #E8F8F0; --green-100: #C9F0DD; --green-200: #95E3BE;
+  --green-300: #57D199; --green-400: #25BC79; --green-500: #11A269;
+  --green-600: #0C8557; --green-700: #0A6A47; --green-800: #0A5239; --green-900: #093E2D;
+
+  /* Blue */
+  --blue-50:  #E9F3FD; --blue-100: #CCE3FB; --blue-200: #9CC8F6;
+  --blue-300: #66A9EF; --blue-400: #3B8DE6; --blue-500: #2477D6;
+  --blue-600: #1A60B4; --blue-700: #174E90; --blue-800: #173F71; --blue-900: #142F54;
+
+  /* Neutrals */
+  --neutral-0:   #FFFFFF; --neutral-50:  #F8F7F4; --neutral-100: #F0EEE9;
+  --neutral-200: #E4E1DA; --neutral-300: #D2CEC4; --neutral-400: #ABA79C;
+  --neutral-500: #837F75; --neutral-600: #5F5C54; --neutral-700: #45433D;
+  --neutral-800: #2C2A26; --neutral-900: #1A1916;
+
+  /* Map */
+  --map-land:        #F4F2EC;
+  --map-land-2:      #EFECE4;
+  --map-road:        #FFFFFF;
+  --map-road-major:  #FBF4DF;
+  --map-road-stroke: #E7E2D6;
+  --map-water:       #CADFEC;
+  --map-park:        #DCEBCF;
+  --map-park-deep:   #CBE2BB;
+  --map-building:    #EBE7DD;
+
+  /* Marker */
+  --marker-ring: conic-gradient(from 200deg, var(--green-400), var(--blue-400), var(--green-400));
+
+  /* Semantic */
+  --star:     #F5A623;
+  --warning:  #F5A623;
+  --danger:   #E5484D;
+  --accent:         var(--green-500);
+  --accent-2:       var(--blue-500);
+  --surface-app:         var(--neutral-50);
+  --surface-card:        var(--neutral-0);
+  --surface-sunken:      var(--neutral-100);
+  --surface-accent-soft: var(--green-50);
+  --text-primary:   var(--neutral-900);
+  --text-secondary: var(--neutral-600);
+  --text-muted:     var(--neutral-500);
+  --text-faint:     var(--neutral-400);
+  --text-accent:    var(--green-700);
+  --border-subtle:  var(--neutral-200);
+  --border-default: var(--neutral-300);
+  --border-accent:  var(--green-500);
+
+  /* Effects */
+  --blur-md: 12px;
+  --radius-full: 999px;
+  --radius-2xl: 24px;
+  --radius-xl: 20px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.08);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.10), 0 0 1px rgba(0,0,0,.06);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.12), 0 0 1px rgba(0,0,0,.06);
+  --shadow-xl: 0 8px 32px rgba(0,0,0,.14), 0 0 1px rgba(0,0,0,.08);
+  --glow-green: 0 0 0 3px rgba(17,162,105,.18), 0 4px 16px rgba(17,162,105,.22);
+  --glow-blue:  0 0 0 3px rgba(36,119,214,.18), 0 4px 16px rgba(36,119,214,.22);
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 320ms;
+  --ease-out:    cubic-bezier(.2,0,0,1);
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SitSpot — Prototype interactif</title>
+
+  <!-- DS Token Stylesheets -->
+  <link rel="stylesheet" href="_ds/sitspot-design-system-2320f6b6-8d80-4f31-ae72-8de6a6462e93/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/sitspot-design-system-2320f6b6-8d80-4f31-ae72-8de6a6462e93/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/sitspot-design-system-2320f6b6-8d80-4f31-ae72-8de6a6462e93/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/sitspot-design-system-2320f6b6-8d80-4f31-ae72-8de6a6462e93/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/sitspot-design-system-2320f6b6-8d80-4f31-ae72-8de6a6462e93/tokens/effects.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; min-height: 100%;
+      background: #111;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-sans);
+    }
+    body { padding: 20px; }
+
+    /* App animations */
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0);    }
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.94) translateY(10px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0);    }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes springIn {
+      0%   { opacity: 0; transform: translateX(-50%) translateY(14px); }
+      60%  { opacity: 1; transform: translateX(-50%) translateY(-3px); }
+      100% { opacity: 1; transform: translateX(-50%) translateY(0);    }
+    }
+
+    /* Hide all scrollbars inside the device */
+    ::-webkit-scrollbar { width: 0; height: 0; }
+    scrollbar-width: none;
+
+    button, input, textarea { font-family: var(--font-sans); }
+    input:focus, textarea:focus { outline: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Data first (plain JS) -->
+  <script src="sitspot/data.js"></script>
+
+  <!-- Components in dependency order -->
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="sitspot/map.jsx"></script>
+  <script type="text/babel" src="sitspot/kit.jsx"></script>
+  <script type="text/babel" src="sitspot/screens.jsx"></script>
+  <script type="text/babel" src="sitspot/app.jsx"></script>
+</body>
+</html>
