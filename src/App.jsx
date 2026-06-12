@@ -319,9 +319,10 @@ export default function App() {
   const PHASE_LABEL = { map: 'Chargement de la carte…', geoloc: 'Localisation en cours…' };
   const phaseLabel = PHASE_LABEL[loadPhase] || null;
 
-  // Sur mobile la TopBar (top:62, h:52) + chips (~40px) = ~154px ; on place les banners en dessous
-  const bannerTop    = isSmallScreen ? 160 : 130;
-  const refreshTop   = isSmallScreen ? 160 : 84;
+  const topBarTop    = isSmallScreen ? 12 : 62;
+  // TopBar (top + h:52) + chips (~40px) = bannerTop
+  const bannerTop    = isSmallScreen ? topBarTop + 100 : 130;
+  const refreshTop   = isSmallScreen ? topBarTop + 100 : 84;
 
   const RefreshBtn = showRefresh && (
     <div style={{position:'absolute', top:refreshTop, left:'50%', transform:'translateX(-50%)', zIndex:50}}>
@@ -406,7 +407,7 @@ export default function App() {
         {RefreshBtn}
         <TopBar query={query} setQuery={setQuery} intents={SS_INTENTS}
           active={activeIntents} toggle={toggleIntent} onFilters={()=>setOverlay('filters')}
-          onSearch={handleSearch}/>
+          onSearch={handleSearch} top={topBarTop}/>
         {!selected && <>
           <div style={{position:'absolute',right:14,bottom:90,display:'flex',flexDirection:'column',gap:10,zIndex:35}}>
             <FloatBtn icon="crosshair" label="Ma position" accent onClick={handleLocateMe}/>

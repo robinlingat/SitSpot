@@ -3,10 +3,10 @@ import { Icon, Stars, Btn, Chip, Tag, Badge, Avatar } from './Kit';
 import { SS_RTAGS } from './data';
 import { supabase } from './supabase';
 
-export function TopBar({ query, setQuery, intents, active, toggle, onFilters, onSearch }) {
+export function TopBar({ query, setQuery, intents, active, toggle, onFilters, onSearch, top=62 }) {
   const handleKey = e => { if (e.key === 'Enter' && query.trim()) onSearch?.(query.trim()); };
   return (
-    <div style={{position:'absolute',top:62,left:0,right:0,zIndex:40,pointerEvents:'none',padding:'0 12px'}}>
+    <div style={{position:'absolute',top,left:0,right:0,zIndex:40,pointerEvents:'none',padding:'0 12px'}}>
       <div style={{pointerEvents:'auto',display:'flex',alignItems:'center',gap:10,
         height:52,padding:'0 8px 0 16px',
         background:'rgba(255,255,255,0.93)',backdropFilter:'blur(var(--blur-md))',
