@@ -104,7 +104,7 @@ export function FiltersSheet({ filters, setFilters, onClose }) {
   );
 }
 
-export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted, desktop = false }) {
+export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted, onDeleteReview, desktop = false }) {
   const [shared,       setShared]       = React.useState(false);
   const [photoLoading, setPhotoLoading] = React.useState(false);
   const [viewPhoto,    setViewPhoto]    = React.useState(null);
@@ -267,13 +267,28 @@ export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddRev
             :reviews.map((r,i)=>{
               const date = new Date(r.created_at);
               const dateStr = date.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+              const isOwner = user && r.user_id === user.id;
               return (
               <div key={r.id||i} style={{display:'flex',gap:12,padding:'12px 0',borderTop:i>0?'1px solid var(--border-subtle)':'none'}}>
                 <Avatar name={r.user_name||'?'} size={36}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                     <span style={{fontWeight:700,fontSize:13}}>{r.user_name||'Anonyme'}</span>
-                    <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text-muted)'}}>{dateStr}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text-muted)'}}>{dateStr}</span>
+                      {isOwner && onDeleteReview && (
+                        <button
+                          onClick={()=>onDeleteReview(r.id)}
+                          title="Supprimer mon avis"
+                          style={{background:'none',border:'none',cursor:'pointer',padding:2,display:'flex',alignItems:'center',color:'var(--text-muted)',borderRadius:4,lineHeight:1}}
+                          onMouseEnter={e=>e.currentTarget.style.color='var(--error,#e53e3e)'}
+                          onMouseLeave={e=>e.currentTarget.style.color='var(--text-muted)'}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div style={{margin:'3px 0 5px'}}><Stars value={r.score} size={13}/></div>
                   <p style={{margin:0,fontSize:13,lineHeight:1.55,color:'var(--text-secondary)'}}>{r.text}</p>

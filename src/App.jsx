@@ -322,6 +322,13 @@ export default function App() {
     setOverlay(null); setSelectedId(null);
     showToast('Banc ajouté ! Il apparaît sur la carte 🗺️');
   };
+  const handleDeleteReview = async (reviewId) => {
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+    if (error) { console.error('delete review error:', error); showToast("Erreur : impossible de supprimer l'avis."); return; }
+    setBenchReviews(prev => prev.filter(r => r.id !== reviewId));
+    setMyReviews(prev => prev.filter(r => r.id !== reviewId));
+    showToast('Avis supprimé.');
+  };
   const handleAuth     = (u) => { setUser(u); setOverlay(null); showToast('Bienvenue sur SitSpot 👋'); };
   const handleLogout   = async () => { await supabase.auth.signOut(); setUser(null); showToast('Déconnecté. À bientôt !'); };
   const switchTab      = t  => { setTab(t); if(t==='map'){setSelectedId(null);setOverlay(null);} };
@@ -447,7 +454,8 @@ export default function App() {
             onAddReview={()=>setOverlay('review')} onNeedAuth={openAuth}
             user={user}
             onPhotoUploaded={p=>setBenchPhotos(prev=>[p,...prev])}
-            onPhotoDeleted={id=>setBenchPhotos(prev=>prev.filter(p=>p.id!==id))}/>
+            onPhotoDeleted={id=>setBenchPhotos(prev=>prev.filter(p=>p.id!==id))}
+            onDeleteReview={handleDeleteReview}/>
         </>}
       </>}
       {tab==='profile' && (
@@ -664,6 +672,7 @@ export default function App() {
                   user={user}
                   onPhotoUploaded={p=>setBenchPhotos(prev=>[p,...prev])}
                   onPhotoDeleted={id=>setBenchPhotos(prev=>prev.filter(p=>p.id!==id))}
+                  onDeleteReview={handleDeleteReview}
                   desktop/>
               </div>
             </>
