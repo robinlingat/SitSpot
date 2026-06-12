@@ -5,6 +5,9 @@ import { FloatBtn, TabBar } from './Kit';
 import { MapCanvas } from './Map';
 import { IOSDevice, DeviceScaler } from './IOSFrame';
 import { TopBar, FiltersSheet, BenchSheet, AddReviewModal, AddBenchModal, AuthModal, ProfileScreen, Toast, LocationPrompt } from './Screens';
+import { CheckinBanner, ClanHub, ClanLeaderboardScreen, ClanInvitationsScreen } from './ClanScreens';
+import { clans } from './clans';
+import { haversineDistance } from './geo';
 
 /* Convertit un élément OSM en objet banc compatible avec BenchSheet */
 function osmToBench(el) {
@@ -64,6 +67,20 @@ export default function App() {
   const [geolocationDenied, setGeolocationDenied] = React.useState(false);
   const lastViewportRef  = React.useRef(null);
 
+  // ── État clans ──
+  const [userClan,       setUserClan]       = React.useState(null);
+  const [userClanMember, setUserClanMember] = React.useState(null);
+  const [activeCheckin,  setActiveCheckin]  = React.useState(null); // { sessionId, benchId, benchName, startedAt }
+  const [ownedBenchIds,  setOwnedBenchIds]  = React.useState([]);
+  const [pendingInvites, setPendingInvites] = React.useState([]);
+  const activeCheckinRef    = React.useRef(null);
+  const outsideZoneSinceRef = React.useRef(null);
+  const ssBenchesRef        = React.useRef([]);
+  const osmBenchesRef       = React.useRef([]);
+  React.useEffect(() => { activeCheckinRef.current = activeCheckin; }, [activeCheckin]);
+  React.useEffect(() => { ssBenchesRef.current = ssBenches; }, [ssBenches]);
+  React.useEffect(() => { osmBenchesRef.current = osmBenches; }, [osmBenches]);
+
   const isLoggedIn = !!user;
 
   /* Authentification : vérifie la session au démarrage */
@@ -98,12 +115,121 @@ export default function App() {
 
   /* Charge le profil quand l'utilisateur change */
   React.useEffect(() => {
-    if (!user) { setProfile(null); setMyReviews([]); return; }
+    if (!user) {
+      setProfile(null); setMyReviews([]);
+      setUserClan(null); setUserClanMember(null); setOwnedBenchIds([]); setPendingInvites([]);
+      return;
+    }
     supabase.from('profiles').select('*').eq('id', user.id).single()
       .then(({ data }) => setProfile(data));
     supabase.from('reviews').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       .then(({ data }) => setMyReviews(data || []));
+    // Charge l'appartenance au clan
+    clans.getMembership(user.id).then(membership => {
+      if (membership) {
+        setUserClan(membership.clans);
+        setUserClanMember(membership);
+        clans.getOwnedBenches(membership.clan_id).then(owned => setOwnedBenchIds(owned.map(o => o.bench_id)));
+      }
+    });
+    // Invitations en attente
+    clans.getPendingInvitations(user.id).then(setPendingInvites);
   }, [user]);
+
+  /* Abonnement temps réel : nouvelles invitations */
+  React.useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel('my-invitations')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'clan_invitations', filter: `invited_user_id=eq.${user.id}` },
+        payload => {
+          setPendingInvites(prev => [payload.new, ...prev]);
+          showToast('📨 Nouvelle invitation de clan !');
+        })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* GPS loop : check-in / check-out automatique */
+  React.useEffect(() => {
+    if (!userClan || !user) return;
+    const CHECKIN_RADIUS  = 7;    // mètres
+    const CHECKOUT_RADIUS = 15;   // mètres
+    const CHECKOUT_GRACE  = 20000; // 20 s en ms
+
+    const tick = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const allBenches = [...ssBenchesRef.current, ...osmBenchesRef.current];
+        const checkin = activeCheckinRef.current;
+
+        if (!checkin) {
+          for (const bench of allBenches) {
+            if (bench.lat == null || bench.lng == null) continue;
+            const dist = haversineDistance(lat, lng, bench.lat, bench.lng);
+            if (dist < CHECKIN_RADIUS) {
+              clans.checkin(bench.id, lat, lng)
+                .then(data => {
+                  setActiveCheckin({ sessionId: data.session_id, benchId: bench.id, benchName: bench.name || 'Banc', startedAt: Date.now() });
+                  showToast(`📍 Check-in sur ${bench.name || 'ce banc'} !`);
+                })
+                .catch(() => {});
+              break;
+            }
+          }
+        } else {
+          const activeBench = allBenches.find(b => b.id === checkin.benchId);
+          if (!activeBench) return;
+          const dist = haversineDistance(lat, lng, activeBench.lat, activeBench.lng);
+          if (dist < CHECKOUT_RADIUS) {
+            outsideZoneSinceRef.current = null;
+          } else {
+            if (!outsideZoneSinceRef.current) {
+              outsideZoneSinceRef.current = Date.now();
+            } else if (Date.now() - outsideZoneSinceRef.current > CHECKOUT_GRACE) {
+              clans.checkout(checkin.sessionId)
+                .then(data => {
+                  showToast(`✅ +${data.points_awarded} pts pour ${userClan.name} !`);
+                  setActiveCheckin(null);
+                  outsideZoneSinceRef.current = null;
+                  // Rafraîchir les bancs possédés
+                  clans.getOwnedBenches(userClan.id).then(owned => setOwnedBenchIds(owned.map(o => o.bench_id)));
+                })
+                .catch(() => {});
+            }
+          }
+        }
+      }, null, { enableHighAccuracy: true, maximumAge: 4000, timeout: 4000 });
+    };
+
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [userClan, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleManualCheckout = async () => {
+    if (!activeCheckin) return;
+    try {
+      const data = await clans.checkout(activeCheckin.sessionId);
+      showToast(`✅ +${data.points_awarded} pts pour ${userClan?.name} !`);
+      setActiveCheckin(null);
+      outsideZoneSinceRef.current = null;
+      if (userClan) clans.getOwnedBenches(userClan.id).then(owned => setOwnedBenchIds(owned.map(o => o.bench_id)));
+    } catch (e) {
+      showToast(e.message || 'Erreur checkout');
+    }
+  };
+
+  const handleClanUpdated = async (newClan, newMember) => {
+    setUserClan(newClan || null);
+    setUserClanMember(newMember || null);
+    if (newClan) {
+      clans.getOwnedBenches(newClan.id).then(owned => setOwnedBenchIds(owned.map(o => o.bench_id)));
+      // Recharger l'appartenance complète depuis la DB
+      if (user) clans.getMembership(user.id).then(m => { if (m) { setUserClan(m.clans); setUserClanMember(m); } });
+    } else {
+      setOwnedBenchIds([]);
+    }
+  };
 
   /* Demande de localisation — affiche l'écran seulement si pas encore répondu */
   const [showLocationPrompt, setShowLocationPrompt] = React.useState(
@@ -430,10 +556,12 @@ export default function App() {
           zoomCmd={zoomCmd} flyToCmd={flyToCmd}
           onViewport={handleViewport} dimmed={!!selected} userLocation={userLocation}
           onReady={handleMapReady}
+          ownedBenchIds={ownedBenchIds}
         />
         {LoadingBanner}
         {GeolocationDeniedBanner}
         {RefreshBtn}
+        <CheckinBanner activeCheckin={activeCheckin} onCheckout={handleManualCheckout} clanName={userClan?.name} isMobile/>
         <TopBar query={query} setQuery={setQuery} intents={SS_INTENTS}
           active={activeIntents} toggle={toggleIntent} onFilters={()=>setOverlay('filters')}
           onSearch={handleSearch} top={topBarTop}/>
@@ -455,9 +583,37 @@ export default function App() {
             user={user}
             onPhotoUploaded={p=>setBenchPhotos(prev=>[p,...prev])}
             onPhotoDeleted={id=>setBenchPhotos(prev=>prev.filter(p=>p.id!==id))}
-            onDeleteReview={handleDeleteReview}/>
+            onDeleteReview={handleDeleteReview}
+            userClanId={userClan?.id}
+            ownedBenchIds={ownedBenchIds}/>
         </>}
       </>}
+      {tab==='clan' && (
+        <div style={{position:'absolute',inset:'0 0 78px 0',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{background:'var(--surface-card)',borderBottom:'1px solid var(--border-subtle)',padding:'72px 20px 14px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <h1 style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:20,letterSpacing:'-0.02em',margin:0}}>Mon clan</h1>
+            {pendingInvites.length>0 && (
+              <button onClick={()=>setTab('invitations')} style={{position:'relative',border:'none',background:'var(--surface-sunken)',borderRadius:99,padding:'5px 12px',fontSize:13,fontWeight:600,cursor:'pointer',color:'var(--text-accent)',display:'flex',alignItems:'center',gap:6}}>
+                📨 {pendingInvites.length}
+              </button>
+            )}
+          </div>
+          <ClanHub user={user} userClan={userClan} userClanMember={userClanMember} onClanUpdated={handleClanUpdated} showToast={showToast}/>
+        </div>
+      )}
+      {tab==='leaderboard' && (
+        <div style={{position:'absolute',inset:'0 0 78px 0',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <ClanLeaderboardScreen userClanId={userClan?.id}/>
+        </div>
+      )}
+      {tab==='invitations' && (
+        <div style={{position:'absolute',inset:'0 0 78px 0',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <ClanInvitationsScreen user={user} showToast={showToast} onAccepted={()=>{
+            if(user) clans.getMembership(user.id).then(m=>{if(m){setUserClan(m.clans);setUserClanMember(m);}});
+            setTab('clan');
+          }}/>
+        </div>
+      )}
       {tab==='profile' && (
         <div style={{position:'absolute',inset:'0 0 78px 0',display:'flex',flexDirection:'column',overflow:'hidden'}}>
           <div style={{background:'var(--surface-card)',borderBottom:'1px solid var(--border-subtle)',padding:'72px 20px 14px',flexShrink:0}}>
@@ -466,7 +622,7 @@ export default function App() {
           <ProfileScreen isLoggedIn={isLoggedIn} profile={profile} myReviews={myReviews} onLogout={handleLogout} onLogin={openAuth}/>
         </div>
       )}
-      <TabBar tab={tab} setTab={switchTab}/>
+      <TabBar tab={tab} setTab={switchTab} pendingInvites={pendingInvites.length}/>
       {overlay==='filters' && <FiltersSheet filters={filters} setFilters={setFilters} onClose={()=>setOverlay(null)}/>}
       {overlay==='review' && selected && <AddReviewModal bench={selected} onClose={()=>setOverlay(null)} onSubmit={handleReview}/>}
       {overlay==='addBench' && <AddBenchModal onClose={()=>setOverlay(null)} onSubmit={handleBench} isLoggedIn={isLoggedIn}/>}
@@ -538,8 +694,11 @@ export default function App() {
         {/* Nav links */}
         <nav style={{padding:'8px 12px', display:'flex', flexDirection:'column', gap:2}}>
           {[
-            {id:'map',     label:'Carte',   path:'M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13 6-3m-6-3V7m6 10 4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-1.447-.894L15 9m0 8V9m0 0L9 7'},
-            {id:'profile', label:'Profil',  path:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'},
+            {id:'map',         label:'Carte',        path:'M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13 6-3m-6-3V7m6 10 4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-1.447-.894L15 9m0 8V9m0 0L9 7'},
+            {id:'clan',        label:'Mon clan',     path:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'},
+            {id:'leaderboard', label:'Classement',   path:'M3 3v18h18M18 17V9M13 17V5M8 17v-3'},
+            {id:'invitations', label:'Invitations',  path:'M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z'},
+            {id:'profile',     label:'Profil',       path:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'},
           ].map(item => (
             <button key={item.id} onClick={()=>switchTab(item.id)} style={{
               display:'flex', alignItems:'center', gap:10,
@@ -634,10 +793,12 @@ export default function App() {
             zoomCmd={zoomCmd} flyToCmd={flyToCmd}
             onViewport={handleViewport} dimmed={!!selected} userLocation={userLocation}
             onReady={handleMapReady}
+            ownedBenchIds={ownedBenchIds}
           />
           {LoadingBanner}
           {GeolocationDeniedBanner}
           {RefreshBtn}
+          <CheckinBanner activeCheckin={activeCheckin} onCheckout={handleManualCheckout} clanName={userClan?.name} isMobile={false}/>
 
           {/* Contrôles carte */}
           <div style={{position:'absolute', right:16, bottom:24, display:'flex', flexDirection:'column', gap:8, zIndex:35}}>
@@ -679,6 +840,43 @@ export default function App() {
           )}
         </>}
 
+        {/* ── VUE CLAN ── */}
+        {tab==='clan' && (
+          <div style={{height:'100%', display:'flex', flexDirection:'column', overflow:'hidden'}}>
+            <div style={{maxWidth:600, margin:'0 auto', width:'100%', padding:'32px 24px 0', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <h1 style={{fontFamily:'var(--font-display)', fontWeight:800, fontSize:24, letterSpacing:'-0.02em', margin:0}}>Mon clan</h1>
+              {pendingInvites.length>0 && (
+                <button onClick={()=>setTab('invitations')} style={{border:'none',background:'var(--surface-accent-soft)',borderRadius:99,padding:'6px 14px',fontSize:13,fontWeight:600,cursor:'pointer',color:'var(--text-accent)'}}>
+                  📨 {pendingInvites.length} invitation{pendingInvites.length>1?'s':''}
+                </button>
+              )}
+            </div>
+            <div style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column'}}>
+              <div style={{maxWidth:600, margin:'0 auto', width:'100%', flex:1, display:'flex', flexDirection:'column'}}>
+                <ClanHub user={user} userClan={userClan} userClanMember={userClanMember} onClanUpdated={handleClanUpdated} showToast={showToast}/>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ── VUE CLASSEMENT ── */}
+        {tab==='leaderboard' && (
+          <div style={{height:'100%', overflowY:'auto', background:'var(--surface-app)'}}>
+            <div style={{maxWidth:600, margin:'0 auto', display:'flex', flexDirection:'column', minHeight:'100%'}}>
+              <ClanLeaderboardScreen userClanId={userClan?.id}/>
+            </div>
+          </div>
+        )}
+        {/* ── VUE INVITATIONS ── */}
+        {tab==='invitations' && (
+          <div style={{height:'100%', overflowY:'auto', background:'var(--surface-app)'}}>
+            <div style={{maxWidth:600, margin:'0 auto', display:'flex', flexDirection:'column', minHeight:'100%'}}>
+              <ClanInvitationsScreen user={user} showToast={showToast} onAccepted={()=>{
+                if(user) clans.getMembership(user.id).then(m=>{if(m){setUserClan(m.clans);setUserClanMember(m);}});
+                setTab('clan');
+              }}/>
+            </div>
+          </div>
+        )}
         {/* ── VUE PROFIL ── */}
         {tab==='profile' && (
           <div style={{height:'100%', overflowY:'auto', background:'var(--surface-app)'}}>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon, Stars, Btn, Chip, Tag, Badge, Avatar } from './Kit';
 import { SS_RTAGS } from './data';
 import { supabase } from './supabase';
+import { BenchLeaderboardPanel, BenchPresenceWidget } from './ClanScreens';
 
 export function TopBar({ query, setQuery, intents, active, toggle, onFilters, onSearch, top=62 }) {
   const handleKey = e => { if (e.key === 'Enter' && query.trim()) onSearch?.(query.trim()); };
@@ -104,7 +105,7 @@ export function FiltersSheet({ filters, setFilters, onClose }) {
   );
 }
 
-export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted, onDeleteReview, desktop = false }) {
+export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddReview, onNeedAuth, isLoggedIn, user, onPhotoUploaded, onPhotoDeleted, onDeleteReview, desktop = false, userClanId, ownedBenchIds = [] }) {
   const [shared,       setShared]       = React.useState(false);
   const [photoLoading, setPhotoLoading] = React.useState(false);
   const [viewPhoto,    setViewPhoto]    = React.useState(null);
@@ -254,6 +255,17 @@ export function BenchSheet({ bench, reviews = [], photos = [], onClose, onAddRev
           <Btn variant="ghost" iconLeft={shared ? 'check' : 'share-2'} onClick={handleShare}>
             {shared ? 'Copié !' : 'Partager'}
           </Btn>
+        </div>
+        {/* Présence temps réel (clan propriétaire) */}
+        {ownedBenchIds.includes(bench.id) && (
+          <div style={{marginTop:14}}>
+            <BenchPresenceWidget benchId={bench.id} isOwner={true}/>
+          </div>
+        )}
+        {/* Classement des clans sur ce banc */}
+        <div style={{marginTop:20}}>
+          <h3 style={{fontFamily:'var(--font-display)',fontWeight:700,fontSize:17,letterSpacing:'-0.01em',margin:'0 0 10px'}}>Classement des clans</h3>
+          <BenchLeaderboardPanel benchId={bench.id} userClanId={userClanId}/>
         </div>
         <div style={{marginTop:20}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>

@@ -3,6 +3,8 @@ import {
   Search, SlidersHorizontal, Navigation, MapPin, Armchair, X, Camera, Image,
   Share2, Plus, Minus, CheckCircle, User, Star, Crosshair, Map, Eye, Sun,
   Trees, Sandwich, Leaf, Mountain, Wind, Coffee,
+  Shield, UserPlus, LogOut, BarChart2, Mail, ChevronRight, Bell, MessageCircle,
+  Moon, Ruler, Lock, HelpCircle, FileText, Loader, Trash2, Check,
 } from 'lucide-react';
 
 const ICONS = {
@@ -12,6 +14,10 @@ const ICONS = {
   'user': User, 'star': Star, 'crosshair': Crosshair, 'map': Map, 'eye': Eye,
   'sun': Sun, 'trees': Trees, 'sandwich': Sandwich, 'leaf': Leaf, 'mountain': Mountain,
   'wind': Wind, 'coffee': Coffee,
+  'shield': Shield, 'user-plus': UserPlus, 'log-out': LogOut, 'bar-chart-2': BarChart2,
+  'mail': Mail, 'chevron-right': ChevronRight, 'bell': Bell, 'message-circle': MessageCircle,
+  'moon': Moon, 'ruler': Ruler, 'lock': Lock, 'help-circle': HelpCircle, 'file-text': FileText,
+  'loader': Loader, 'trash-2': Trash2, 'check': Check,
 };
 
 export function Icon({ n, s=20, color }) {
@@ -188,8 +194,14 @@ export function FloatBtn({ icon, label, accent, onClick }) {
   );
 }
 
-export function TabBar({ tab, setTab }) {
-  const items = [{id:'map',icon:'map',label:'Carte'},{id:'profile',icon:'user',label:'Profil'}];
+export function TabBar({ tab, setTab, pendingInvites = 0 }) {
+  const items = [
+    { id:'map',         icon:'map',         label:'Carte' },
+    { id:'clan',        icon:'shield',      label:'Clan' },
+    { id:'leaderboard', icon:'bar-chart-2', label:'Classement' },
+    { id:'invitations', icon:'mail',        label:'Invitations', badge: pendingInvites },
+    { id:'profile',     icon:'user',        label:'Profil' },
+  ];
   return (
     <div style={{position:'absolute',bottom:0,left:0,right:0,zIndex:50,height:78,
       background:'rgba(255,255,255,0.96)',backdropFilter:'blur(14px)',
@@ -200,9 +212,17 @@ export function TabBar({ tab, setTab }) {
           height:56,paddingTop:4,border:'none',background:'transparent',cursor:'pointer',
           color:tab===it.id?'var(--accent)':'var(--text-muted)',
           transition:'color var(--dur-fast)',
+          position:'relative',
         }}>
-          <Icon n={it.icon} s={24}/>
-          <span style={{fontSize:11,fontWeight:tab===it.id?700:500}}>{it.label}</span>
+          <Icon n={it.icon} s={22}/>
+          <span style={{fontSize:10,fontWeight:tab===it.id?700:500}}>{it.label}</span>
+          {it.badge > 0 && (
+            <span style={{position:'absolute',top:2,right:'calc(50% - 18px)',minWidth:16,height:16,padding:'0 4px',borderRadius:99,
+              background:'var(--accent)',color:'#fff',fontSize:9,fontWeight:700,display:'grid',placeItems:'center',
+              boxShadow:'0 0 0 2px rgba(255,255,255,0.96)'}}>
+              {it.badge}
+            </span>
+          )}
         </button>
       ))}
     </div>

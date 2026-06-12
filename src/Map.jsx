@@ -122,18 +122,23 @@ function toAllGeoJSON(ssBenches, osmBenches) {
 
 const ARMCHAIR = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 11v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H7v-2a2 2 0 0 0-4 0"/><line x1="5" y1="18" x2="5" y2="20"/><line x1="19" y1="18" x2="19" y2="20"/></svg>`;
 
-function makeMarkerEl(bench, isOpen) {
+function makeMarkerEl(bench, isOpen, isOwned) {
   const sc    = bench.score;
   const color = sc === null ? '#9ca3af' : sc >= 4 ? '#22c55e' : sc >= 2.5 ? '#f59e0b' : '#ef4444';
   const dim   = isOpen ? 56 : 30;
   const pad   = isOpen ? 5 : 4;
-  const bg    = isOpen ? 'linear-gradient(145deg,#cfe6c6,#a9d6e6)' : '#fff';
+  const bg    = isOpen
+    ? 'linear-gradient(145deg,#cfe6c6,#a9d6e6)'
+    : isOwned ? 'linear-gradient(145deg,#fef3c7,#fde68a)' : '#fff';
   const shadow = isOpen
     ? '0 4px 16px rgba(0,0,0,0.22),0 0 0 3px rgba(34,197,94,0.28)'
+    : isOwned ? '0 2px 8px rgba(0,0,0,0.14),0 0 0 2px rgba(245,158,11,0.5)'
     : '0 2px 8px rgba(0,0,0,0.14)';
   const inner = isOpen
     ? ARMCHAIR
-    : `<span style="width:10px;height:10px;border-radius:50%;background:${color};display:block"></span>`;
+    : isOwned
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706"><path d="M11.562 3.322a.75.75 0 0 1 .876 0l2.254 1.639 2.635-.856a.75.75 0 0 1 .928.523l.683 2.658 2.41 1.39a.75.75 0 0 1 .223 1.044l-1.53 2.317.528 2.7a.75.75 0 0 1-.739.896l-2.73-.17-1.687 2.145a.75.75 0 0 1-1.086.07l-1.957-1.92-2.712.377a.75.75 0 0 1-.84-.763l.1-2.742-2.116-1.702a.75.75 0 0 1 .062-1.197l2.54-1.498.483-2.686a.75.75 0 0 1 .875-.597l2.671.528 1.869-1.917z"/></svg>`
+      : `<span style="width:10px;height:10px;border-radius:50%;background:${color};display:block"></span>`;
   const badge = isOpen && sc
     ? `<span style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:100px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.14);font-weight:800;font-size:12px;font-family:sans-serif"><svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.1 6.47L12 17.4l-5.8 3.05 1.1-6.47L2.6 9.35l6.5-.95L12 2.5z"/></svg>${String(sc).replace('.', ',')}</span>`
     : '';
@@ -163,7 +168,7 @@ function makeUserMarkerEl() {
   return el;
 }
 
-export function MapCanvas({ benches = [], osmBenches = [], selectedId, onSelect, zoomCmd, flyToCmd, onViewport, dimmed, userLocation, onReady }) {
+export function MapCanvas({ benches = [], osmBenches = [], selectedId, onSelect, zoomCmd, flyToCmd, onViewport, dimmed, userLocation, onReady, ownedBenchIds = [] }) {
   const containerRef   = useRef(null);
   const mapRef         = useRef(null);
   const markersRef     = useRef({});
@@ -171,19 +176,21 @@ export function MapCanvas({ benches = [], osmBenches = [], selectedId, onSelect,
   const userMarkerRef  = useRef(null);
   const userMarkerElRef = useRef(null);
 
-  const benchesRef    = useRef(benches);
-  const osmBenchesRef = useRef(osmBenches);
-  const selectedIdRef = useRef(selectedId);
-  const onSelectRef   = useRef(onSelect);
-  const mapLoadedRef  = useRef(false);
-  const onViewportRef = useRef(onViewport);
-  const onReadyRef    = useRef(onReady);
-  onViewportRef.current = onViewport;
-  onReadyRef.current    = onReady;
-  benchesRef.current    = benches;
-  osmBenchesRef.current = osmBenches;
-  selectedIdRef.current = selectedId;
-  onSelectRef.current   = onSelect;
+  const benchesRef       = useRef(benches);
+  const osmBenchesRef    = useRef(osmBenches);
+  const selectedIdRef    = useRef(selectedId);
+  const onSelectRef      = useRef(onSelect);
+  const mapLoadedRef     = useRef(false);
+  const onViewportRef    = useRef(onViewport);
+  const onReadyRef       = useRef(onReady);
+  const ownedBenchIdsRef = useRef(ownedBenchIds);
+  onViewportRef.current    = onViewport;
+  onReadyRef.current       = onReady;
+  benchesRef.current       = benches;
+  osmBenchesRef.current    = osmBenches;
+  selectedIdRef.current    = selectedId;
+  onSelectRef.current      = onSelect;
+  ownedBenchIdsRef.current = ownedBenchIds;
 
   function applyMarkerZoom() {
     const map = mapRef.current;
@@ -207,7 +214,8 @@ export function MapCanvas({ benches = [], osmBenches = [], selectedId, onSelect,
     Object.values(markersRef.current).forEach(m => m.remove());
     markersRef.current = {};
     benchesRef.current.forEach(b => {
-      const el = makeMarkerEl(b, selectedIdRef.current === b.id);
+      const isOwned = ownedBenchIdsRef.current.includes(b.id);
+      const el = makeMarkerEl(b, selectedIdRef.current === b.id, isOwned);
       el.style.opacity = b._dim === false ? '0.28' : '1';
       el.addEventListener('click', () => onSelectRef.current(b.id));
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
@@ -389,7 +397,7 @@ export function MapCanvas({ benches = [], osmBenches = [], selectedId, onSelect,
   useEffect(() => {
     rebuildMarkers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [benches, selectedId, onSelect]);
+  }, [benches, selectedId, onSelect, ownedBenchIds]);
 
   /* Mise à jour de la source quand les données ou la sélection changent */
   useEffect(() => {
